@@ -1,0 +1,59 @@
+static_resources: #第一行定义了正在使用的接口配置，在这里配置静态API
+#先脑补一下网络代理程序的流程，比如作为一个代理，首先要能获取请求流量，
+#通常是采用监听端口的方式实现；其次拿到请求数据后需要对其做微处理，
+#例如附加 Header 或校验某个 Header 字段的内容等，这里针对来源数据的层次不同，可以分为 L3/L4/L7，
+#然后将请求转发出去；转发这里又可以衍生出如果后端是一个集群，需要从中挑选一台机器，如何挑选又涉及到负载均衡等。
+#static_resources 包含在 Envoy 启动时静态配置的所有内容，而不是在运行时动态配置的。
+
+  listeners: #监听端口
+  #listener : Envoy 的监听地址，就是真正干活的。Envoy 会暴露一个或多个 Listener 来监听客户端的请求。
+  #监听器是 Envoy 监听请求的网络配置，例如 IP 地址和端口。
+  #我们这里的 Envoy 在 Docker 容器内运行，因此它需要监听 IP 地址 0.0.0.0，在这种情况下，Envoy 将在端口 10000 上进行监听。
+  - name: listener_0
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 10000 #请求入口
+
+    filter_chains:
+    - filters:
+    #filter : 过滤器。在 Envoy 中指的是一些“可插拔”和可组合的逻辑处理层，是 Envoy 核心逻辑处理单元。
+    #通过 Envoy 监听传入的流量，下一步是定义如何处理这些请求。每个监听器都有一组过滤器，
+    #并且不同的监听器可以具有一组不同的过滤器。
+    #在我们这个示例中，我们将所有流量代理到 baidu.com，
+    #配置完成后我们应该能够通过请求 Envoy 的端点就可以直接看到百度的主页了，而无需更改 URL 地址。
+    #过滤器是通过 filter_chains 来定义的，每个过滤器的目的是找到传入请求的匹配项，以使其与目标地址进行匹配：
+      - name: envoy.http_connection_manager 
+      #该过滤器使用了 envoy.http_connection_manager，这是为 HTTP 连接设计的一个内置过滤器
+        config:
+          stat_prefix: ingress_http #stat_prefix：为连接管理器发出统计信息时使用的一个前缀。
+          route_config: 
+          #route_config：路由配置，如果虚拟主机匹配上了则检查路由。
+          #在我们这里的配置中，无论请求的主机域名是什么，route_config 都匹配所有传入的 HTTP 请求。
+          #route_config : 路由规则配置。即将请求路由到后端的哪个集群。
+            name: local_route
+            virtual_hosts:
+            - name: local_service
+              domains: ["*"]
+              routes: #routes：如果 URL 前缀匹配，则一组路由规则定义了下一步将发生的状况。/ 表示匹配根路由。
+              - match:
+                  prefix: "/"
+                route:
+                  host_rewrite: www.baidu.com #host_rewrite：更改 HTTP 请求的入站 Host 头信息。
+                  cluster: service_baidu #cluster: 将要处理请求的集群名称，下面会有相应的实现。
+          http_filters: #http_filters: 该过滤器允许 Envoy 在处理请求时去适应和修改请求。
+          - name: envoy.router
+
+  clusters:
+  #当请求于过滤器匹配时，该请求将会传递到集群。
+  #下面的配置就是将主机定义为访问 HTTPS 的 baidu.com 域名，如果定义了多个主机，则 Envoy 将执行轮询（Round Robin）策略。
+  #cluster : 服务提供方集群。Envoy 通过服务发现定位集群成员并获取服务，具体路由到哪个集群成员由负载均衡策略决定。
+  - name: service_baidu
+    connect_timeout: 0.25s
+    type: LOGICAL_DNS
+    dns_lookup_family: V4_ONLY
+    lb_policy: ROUND_ROBIN
+    hosts: [{ socket_address: { address: www.baidu.com, port_value: 443 }}]
+    tls_context: { sni: baidu.com }
+  #上面的配置定义了 Envoy 的静态配置模板，
+  #监听器定义了 Envoy 的端口和 IP 地址，监听器具有一组过滤器来匹配传入的请求，匹配请求后，将请求转发到集群。
