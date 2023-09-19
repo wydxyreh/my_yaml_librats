@@ -34,9 +34,9 @@ static_resources:
           common_tls_context:
             tls_certificates:
             - certificate_chain:
-                filename: /home/wydx/myenvoy/certs/servercert.pem
+                filename: /home/wydx/my_yaml_librats/certs/servercert.pem
               private_key:
-                filename: /home/wydx/myenvoy/certs/serverkey.pem
+                filename: /home/wydx/my_yaml_librats/certs/serverkey.pem
 
   clusters:
   - name: service_envoyproxy_io
