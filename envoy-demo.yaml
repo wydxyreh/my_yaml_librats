@@ -1,4 +1,5 @@
 static_resources:
+
   listeners:
   - name: listener_0
     address:
@@ -28,7 +29,7 @@ static_resources:
               - match:
                   prefix: "/"
                 route:
-                  host_rewrite_literal: 10.14.30.207
+                  host_rewrite_literal: www.envoyproxy.io
                   cluster: service_envoyproxy_io
 
   clusters:
@@ -43,10 +44,10 @@ static_resources:
         - endpoint:
             address:
               socket_address:
-                address: 10.14.30.207
-                port_value: 10000
+                address: www.envoyproxy.io
+                port_value: 443
     transport_socket:
       name: envoy.transport_sockets.tls
       typed_config:
         "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
-        sni: 10.14.30.207
+        sni: www.envoyproxy.io
