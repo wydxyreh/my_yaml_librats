@@ -4,7 +4,7 @@ static_resources:
   - name: listener_0
     address:
       socket_address:
-        address: 0.0.0.0
+        address: 172.19.0.2
         port_value: 10000
     filter_chains:
     - filters:
@@ -27,17 +27,7 @@ static_resources:
                 route:
                   host_rewrite_literal: www.envoyproxy.io
                   cluster: service_envoyproxy_io
-      transport_socket:
-        name: envoy.transport_sockets.tls
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
-          common_tls_context:
-            tls_certificates:
-            - certificate_chain:
-                filename: /home/wydx/my_yaml_librats/certs/servercert.pem
-              private_key:
-                filename: /home/wydx/my_yaml_librats/certs/serverkey.pem
-
+                  
   clusters:
   - name: service_envoyproxy_io
     type: LOGICAL_DNS
